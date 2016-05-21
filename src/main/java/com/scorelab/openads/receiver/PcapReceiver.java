@@ -35,6 +35,10 @@ import com.google.gson.Gson;
  */
 public class PcapReceiver extends Receiver<String>{
 	private static final long serialVersionUID = 1L;
+
+    //Set Logger level
+    private static final Logger LOGGER = Logger.getRootLogger();
+
 	
 	/**
 	 * Predefined Variables
@@ -147,16 +151,14 @@ public class PcapReceiver extends Receiver<String>{
 	
 	public static void main(String[] args) throws IOException{
 		
-		//Set Logger level
-		Logger.getRootLogger().setLevel(Level.WARN);
+
 		
 		//Setup configuration, with 0.1 second batch size
 		SparkConf sparkConf = new SparkConf().setAppName("PcapReceiver");
 		
 		final JavaStreamingContext jsc = new JavaStreamingContext(sparkConf, new Duration(30000));
-		JavaReceiverInputDStream<String> lines = jsc.receiverStream(new PcapReceiver(null));;
-		System.out.println("code runs here");
-		
+		JavaReceiverInputDStream<String> lines;
+
 		/**
 		 * Check user input their own preference for Pcap4j,
 		 * if not null, it will parse the input property file;
@@ -174,11 +176,11 @@ public class PcapReceiver extends Receiver<String>{
 			 * if the path is null or "", it will skip this step;
 			 * and will not save the data to the user-defined path
 			 */
-			String path2savedata = config.getProperty("path2savedata");
+			/*String path2savedata = config.getProperty("path2savedata");
 			if(path2savedata != null && path2savedata.trim().length() > 0){
 				lines.dstream().saveAsTextFiles(path2savedata, "");
 				//TODO to add function: use Hadoop_FileUtils to merge the data into single file
-			}
+			}*/
 		}else{
 			lines = jsc.receiverStream(new PcapReceiver(null));
 		}
@@ -189,12 +191,7 @@ public class PcapReceiver extends Receiver<String>{
 
 			@Override
 			public Iterable<String> call(String line) throws Exception {
-				System.out.println("--------------------------------");
-				/**
-				 * Could add any further line process functions here
-				 */
-				System.out.println(line);
-				System.out.println("--------------------------------");
+				LOGGER.info(line);
 				return null;
 			}});
 		flows.print();
@@ -205,11 +202,16 @@ public class PcapReceiver extends Receiver<String>{
 			{
 				jsc.stop();
 				jsc.close();
-				System.out.println("---Close PcapReceiver service---");
+				LOGGER.info("Shutting down PcapReceiver service");
 			}
 		});
 				
 		jsc.start();
 	    jsc.awaitTermination();
 	}
+
+    @Override
+    public StorageLevel storageLevel() {
+        return StorageLevel.MEMORY_AND_DISK_2();
+    }
 }
